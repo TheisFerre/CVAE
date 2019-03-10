@@ -67,15 +67,22 @@ def pca_encode(model, dataset, labels, outfile):
 
 
 
-def pca_avg_encode(model, dataset, labels, outfile):
+def pca_avg_encode(model, dataset, labels, cuda, outfile):
 	print('Using function pca_avg_encode')
 
 	##Encode the whole dataset in small parts (memory limits)
 	for i in range(0, dataset.shape[0], 500):
 		if i == 0:
-			encoded_vector = np.array(model.encode(torch.from_numpy(dataset[i:i+500]).float())[0].cpu().detach().numpy() )
+			if cuda:	
+				encoded_vector = np.array(model.encode(torch.from_numpy(dataset[i:i+500]).cuda().float())[0].cpu().detach().numpy() )
+			else:
+				encoded_vector = np.array(model.encode(torch.from_numpy(dataset[i:i+500]).float())[0].cpu().detach().numpy() )
+
 		else:
-			encoded_vector = np.append(encoded_vector, model.encode(torch.from_numpy(dataset[i:i+500]).float())[0].cpu().detach().numpy(), axis=0 )
+			if cuda:
+				encoded_vector = np.append(encoded_vector, model.encode(torch.from_numpy(dataset[i:i+500]).cuda().float())[0].cpu().detach().numpy(), axis=0 )
+			else:
+				encoded_vector = np.append(encoded_vector, model.encode(torch.from_numpy(dataset[i:i+500]).float())[0].cpu().detach().numpy(), axis=0 )
 	
 	##Make a list of targets(OTU) and contigs
 	targets = []

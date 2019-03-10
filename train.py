@@ -1,5 +1,6 @@
 import torch
 import numpy as np
+from torch.utils.data import DataLoader
 
 
 def train_model(model, dataset, epochs, batch_size, lr, cuda):
@@ -12,16 +13,21 @@ def train_model(model, dataset, epochs, batch_size, lr, cuda):
 	total_loss_list = []
 	ce_loss_list = []
 	KLD_loss_list = []
+
+
+	dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
 	print('Starting to train!')
 
 	for epoch in range(1, epochs+1):
-		batch_idx = np.random.permutation(dataset.shape[0])
-		for i in range((len(batch_idx)//batch_size)+1):
+		#batch_idx = np.random.permutation(dataset.shape[0])
+
+		for i_batch, batch in enumerate(dataloader):
 			if cuda:
-				batch = torch.as_tensor(dataset[batch_idx[i*batch_size:(i+1)*batch_size]]).cuda()
+				batch = batch.float().cuda()
 			else:
-				batch = torch.from_numpy(dataset[batch_idx[i*batch_size:(i+1)*batch_size]]).float()
-			print(batch.shape)
+				batch = batch.float()
+			#print(batch.shape)
+			
 			optim.zero_grad()
 			reconstructed_x, mu, logvar = model.forward(batch)
 
@@ -34,13 +40,12 @@ def train_model(model, dataset, epochs, batch_size, lr, cuda):
 			total_loss_list.append(total_loss.item())
 			ce_loss_list.append(ce_loss.item())
 			KLD_loss_list.append(KLD_loss.item())
-			print('Total loss: {}, ce_loss: {}, KLD_loss: {}'.format(total_loss.item(), ce_loss.item(), KLD_loss.item() ))
-			if i == 2:
-				break
-		break
+			#print('Total loss: {}, ce_loss: {}, KLD_loss: {}'.format(total_loss.item(), ce_loss.item(), KLD_loss.item() ))
+			#if i_batch == 2:
+				#break
 			
 
-		print('Epoch {} \tTotal_loss: {} \tce_loss: {} \tKLD_loss{}'.format(epoch, np.mean(total_loss_list[-(len(total_loss_list)//epoch):]), np.mean(ce_loss_list[-(len(ce_loss_list)//epoch):]), np.mean(KLD_loss_list[-(len(KLD_loss_list)//epoch):]) ))
+		print('Epoch {} \tTotal_loss: {} \tce_loss: {} \tKLD_loss: {}'.format(epoch, np.mean(total_loss_list[-(len(total_loss_list)//epoch):]), np.mean(ce_loss_list[-(len(ce_loss_list)//epoch):]), np.mean(KLD_loss_list[-(len(KLD_loss_list)//epoch):]) ))
 	
 	##Return the loss lists, so we can save a plot where the loss is showed.
 	return (total_loss_list, ce_loss_list, KLD_loss_list)

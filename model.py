@@ -1,16 +1,17 @@
 import torch
 import numpy as np
+import math
 
 class CVAE(torch.nn.Module):
-    def __init__(self, latent_size, ce_weight, KLD_weight, channels, kernels, strides):
+    def __init__(self, latent_size, alpha, dropout, channels, kernels, strides, cuda_flag):
 	##Initialization
         super(CVAE, self).__init__()
-        self.dropout = torch.nn.Dropout(p=0.2)
+        self.dropout = torch.nn.Dropout(p=dropout)
         self.relu = torch.nn.LeakyReLU()
         self.softplus = torch.nn.Softplus()
         self.softmax = torch.nn.Softmax(dim=1)
-        self.ce_weight = ce_weight
-        self.KLD_weight = KLD_weight
+        self.alpha = alpha
+        self.cuda_flag = cuda_flag
 
         self.latent_size = latent_size	
         self.channels = channels
@@ -68,7 +69,10 @@ class CVAE(torch.nn.Module):
             raise ValueError('Vector for mu and sigma have to be the same length')
         else:
             self.logvar = torch.exp(logvar/2)
-            self.epsilon = torch.randn((mu.size())).float()#.cuda()
+            if self.cuda_flag:
+                self.epsilon = torch.randn((mu.size())).float().cuda()
+            else:
+                self.epsilon = torch.randn((mu.size())).float()
             self.latent_vector = torch.mul(self.epsilon, self.logvar) + mu
         
         return self.latent_vector
@@ -112,8 +116,8 @@ class CVAE(torch.nn.Module):
         '''
         Function for calculating ce_loss and KLD_loss.
         '''
-        ce_loss = torch.nn.functional.cross_entropy(reconstructed_x, x.argmax(1), reduction = 'sum') * self.ce_weight
-        KLD_loss = (-0.5 * (1 + logvar - mu.pow(2) - logvar.exp()).sum(dim=1).mean()) * self.KLD_weight
+        ce_loss = torch.nn.functional.cross_entropy(reconstructed_x, x.argmax(1))/math.log(4)
+        KLD_loss = (-0.5 * (1 + logvar - mu.pow(2) - logvar.exp()).sum(dim=1).mean()) * (self.alpha/self.latent_size)
         total_loss = ce_loss + KLD_loss
         return total_loss, ce_loss, KLD_loss
 
