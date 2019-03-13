@@ -26,13 +26,13 @@ def train_model(model, dataset, epochs, batch_size, lr, cuda):
 				batch = batch.float().cuda()
 			else:
 				batch = batch.float()
-			#print(batch.shape)
 			
-			optim.zero_grad()
 			reconstructed_x, mu, logvar = model.forward(batch)
 
 			##Calculating Reconstruction loss and KLD loss, from method in model Class.
 			total_loss, ce_loss, KLD_loss = model.calc_loss(reconstructed_x, batch, mu, logvar)
+			
+			optim.zero_grad()
 			total_loss.backward()
 			optim.step()
 			
@@ -40,9 +40,6 @@ def train_model(model, dataset, epochs, batch_size, lr, cuda):
 			total_loss_list.append(total_loss.item())
 			ce_loss_list.append(ce_loss.item())
 			KLD_loss_list.append(KLD_loss.item())
-			#print('Total loss: {}, ce_loss: {}, KLD_loss: {}'.format(total_loss.item(), ce_loss.item(), KLD_loss.item() ))
-			#if i_batch == 2:
-				#break
 			
 
 		print('Epoch {} \tTotal_loss: {} \tce_loss: {} \tKLD_loss: {}'.format(epoch, np.mean(total_loss_list[-(len(total_loss_list)//epoch):]), np.mean(ce_loss_list[-(len(ce_loss_list)//epoch):]), np.mean(KLD_loss_list[-(len(KLD_loss_list)//epoch):]) ))

@@ -3,7 +3,7 @@ import numpy as np
 import math
 
 class CVAE(torch.nn.Module):
-    def __init__(self, latent_size, alpha, dropout, channels, kernels, strides, cuda_flag):
+    def __init__(self, latent_size, alpha, dropout, channels, kernels, strides, padding, cuda_flag):
 	##Initialization
         super(CVAE, self).__init__()
         self.dropout = torch.nn.Dropout(p=dropout)
@@ -17,10 +17,12 @@ class CVAE(torch.nn.Module):
         self.channels = channels
         self.kernels = kernels
         self.strides = strides
+        self.padding = padding
 
         self.fc_size = 2000
         for i in range(len(self.channels)):
-                self.fc_size = ((self.fc_size - self.kernels[i])/self.strides[i])+1
+                self.fc_size = ((self.fc_size - self.kernels[i]+2*padding[i])/self.strides[i])+1
+        print(self.fc_size)
 
 
         ##Encoder_layers
@@ -29,31 +31,41 @@ class CVAE(torch.nn.Module):
 
         ##Insert layers to Encoder_layers
         layer_count = 0
-        for parameters in zip(self.channels, self.kernels, self.strides):
+        for parameters in zip(self.channels, self.kernels, self.strides, self.padding):
                 if layer_count == 0:
-                        self.encoder_layers.append(torch.nn.Conv1d(in_channels=4, out_channels=parameters[0], kernel_size=parameters[1], stride=parameters[2]))
+                        self.encoder_layers.append(torch.nn.Conv1d(in_channels=4, out_channels=parameters[0], kernel_size=parameters[1], stride=parameters[2], padding=parameters[3]))
                         self.encoder_norms.append(torch.nn.BatchNorm1d(parameters[0]))
                 else:
-                        self.encoder_layers.append(torch.nn.Conv1d(in_channels=self.channels[layer_count-1], out_channels=parameters[0], kernel_size=parameters[1], stride=parameters[2]))
+                        self.encoder_layers.append(torch.nn.Conv1d(in_channels=self.channels[layer_count-1], out_channels=parameters[0], kernel_size=parameters[1], stride=parameters[2], padding=parameters[3]))
                         self.encoder_norms.append(torch.nn.BatchNorm1d(parameters[0]))
                 layer_count += 1
+	
+        self.encode_fc1 = torch.nn.Linear(int(self.fc_size*self.channels[-1]), 250)
+        self.encode_fc2 = torch.nn.Linear(250, 100)
+        self.encode_mu = torch.nn.Linear(100, self.latent_size)
+        self.encode_logvar = torch.nn.Linear(100, self.latent_size)
 
-        self.encode_mu = torch.nn.Linear(int(self.fc_size*self.channels[-1]), self.latent_size)
-        self.encode_logvar = torch.nn.Linear(int(self.fc_size*self.channels[-1]), self.latent_size)
+        #self.encode_mu = torch.nn.Linear(int(self.fc_size*self.channels[-1]), self.latent_size)
+        #self.encode_logvar = torch.nn.Linear(int(self.fc_size*self.channels[-1]), self.latent_size)
 
         ##Decoder layers
         self.latent = torch.nn.Linear(self.latent_size, int(self.fc_size*self.channels[-1]))
+        self.latent = torch.nn.Linear(self.latent_size, 100)
+        self.decode_fc2 = torch.nn.Linear(100, 250)
+        self.decode_fc1 = torch.nn.Linear(250, int(self.fc_size*self.channels[-1])) 	
+
+
         self.decoder_layers = torch.nn.ModuleList()
         self.decoder_norms = torch.nn.ModuleList()
 
         ##Insert layers to Decoder layers
         layer_count = 0
-        for parameters in zip(self.channels[::-1], self.kernels[::-1], self.strides[::-1]):
+        for parameters in zip(self.channels[::-1], self.kernels[::-1], self.strides[::-1], self.padding[::-1]):
                 if len(self.channels) > 1+layer_count:
-                        self.decoder_layers.append(torch.nn.ConvTranspose1d(in_channels=parameters[0], out_channels=self.channels[::-1][layer_count+1], kernel_size=parameters[1], stride=parameters[2]))
+                        self.decoder_layers.append(torch.nn.ConvTranspose1d(in_channels=parameters[0], out_channels=self.channels[::-1][layer_count+1], kernel_size=parameters[1], stride=parameters[2], padding=parameters[3]))
                         self.decoder_norms.append(torch.nn.BatchNorm1d(self.channels[::-1][layer_count+1]))
                 layer_count += 1
-        self.output_layer = torch.nn.ConvTranspose1d(in_channels=self.channels[0], out_channels=4, kernel_size=self.kernels[0], stride=self.strides[0])
+        self.output_layer = torch.nn.ConvTranspose1d(in_channels=self.channels[0], out_channels=4, kernel_size=self.kernels[0], stride=self.strides[0], padding=self.padding[0])
         
         
     
@@ -81,9 +93,14 @@ class CVAE(torch.nn.Module):
         '''
         The first part of the model, which encodes an input into a latent representation.
         '''
+        tensors = list()
+
         for layer, batchnorm in zip(self.encoder_layers, self.encoder_norms):
                 x = batchnorm(self.dropout(self.relu(layer(x))))
+                tensors.append(x)
         x = x.view(-1, int(self.fc_size*self.channels[-1]))
+        x = self.dropout(self.relu(self.encode_fc1(x)))
+        x = self.dropout(self.relu(self.encode_fc2(x)))
         self.mu = self.encode_mu(x)
         self.logvar = self.softplus(self.encode_logvar(x))
         
@@ -93,15 +110,16 @@ class CVAE(torch.nn.Module):
         '''
         The second part of the model, where the latent representation is decoded.
         '''
+
         x = self.latent(x)
+        x = self.dropout(self.relu(self.decode_fc2(x)))
+        x = self.dropout(self.relu(self.decode_fc1(x)))
         x = x.view(-1, self.channels[-1], int(self.fc_size))
         if len(self.channels) > 1:
                 for layer, batchnorm in zip(self.decoder_layers, self.decoder_norms):
                         x = batchnorm(self.dropout(self.relu(layer(x))))
         
-        reconstruction = self.softmax(self.output_layer(x))
-      
-        return reconstruction
+        return self.output_layer(x)
     
     def forward(self, x):
         '''
@@ -117,6 +135,7 @@ class CVAE(torch.nn.Module):
         Function for calculating ce_loss and KLD_loss.
         '''
         ce_loss = torch.nn.functional.cross_entropy(reconstructed_x, x.argmax(1))/math.log(4)
+       
         KLD_loss = (-0.5 * (1 + logvar - mu.pow(2) - logvar.exp()).sum(dim=1).mean()) * (self.alpha/self.latent_size)
         total_loss = ce_loss + KLD_loss
         return total_loss, ce_loss, KLD_loss

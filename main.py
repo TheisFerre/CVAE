@@ -22,6 +22,7 @@ parser.add_argument('--dropout', type=float, default=0.25)
 parser.add_argument('--channels', type=str, default='50')
 parser.add_argument('--kernels', type=str, default='20')
 parser.add_argument('--strides', type=str, default='20')
+parser.add_argument('--padding', type=str, default='')
 
 parser.add_argument('--train', action='store_true')
 parser.add_argument('--load', action='store_true')
@@ -44,17 +45,18 @@ if __name__ == '__main__':
 	channels = list(map(int, args.channels.split('_')))
 	kernels = list(map(int, args.kernels.split('_')))
 	strides = list(map(int, args.strides.split('_')))
-
-	#The model takes the following inputs: (latent_size, ce_weight, KLD_weight)
-	#cvae = CVAE(args.latent_size, args.alpha, channels, kernels, strides, args.cuda)
+	if len(args.padding) == 0:
+		padding = np.zeros(len(channels))
+	else:
+		padding = list(map(int, args.padding.split('_')))
 	
 	cuda_flag = args.cuda
 	
 	##Check for cuda	
 	if cuda_flag:
-		cvae = CVAE(args.latent_size, args.alpha, args.dropout, channels, kernels, strides, args.cuda).cuda().float()
+		cvae = CVAE(args.latent_size, args.alpha, args.dropout, channels, kernels, strides, padding, args.cuda).cuda().float()
 	else:
-		cvae = CVAE(args.latent_size, args.alpha, args.dropout, channels, kernels, strides, args.cuda).float()
+		cvae = CVAE(args.latent_size, args.alpha, args.dropout, channels, kernels, strides, padding, args.cuda).float()
 	
 	##Train model if in arguments
 	if args.train:
