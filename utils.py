@@ -5,6 +5,7 @@ import os
 from sklearn.decomposition import PCA
 import pandas as pd
 import pickle
+import vamb
 
 
 
@@ -14,6 +15,7 @@ def pca_encode(model, dataset, labels, outfile):
 	DOES NOT AVERAGE OVER SAME CONTIGS.
 	"""
 	
+	model.eval()
 	##Encode the whole dataset in small parts (memory limits)
 	for i in range(0, dataset.shape[0], 500):
 		if i == 0:
@@ -68,6 +70,7 @@ def pca_encode(model, dataset, labels, outfile):
 
 
 def pca_avg_encode(model, dataset, labels, cuda, outfile):
+	model.eval()
 	print('Using function pca_avg_encode')
 
 	##Encode the whole dataset in small parts (memory limits)
@@ -91,7 +94,8 @@ def pca_avg_encode(model, dataset, labels, cuda, outfile):
 		line_split = line.split()
 		targets.append(line_split[0])
 		contigs.append(line_split[1])
-	targets, contigs = np.array(targets), np.array(contigs)	
+	targets, contigs = np.array(targets), np.array(contigs) #np.array(targets)[0:10000], np.array(contigs)[0:10000]	
+	
 	
 
 	##Instantiate 2-dimenstional PCA
@@ -112,6 +116,12 @@ def pca_avg_encode(model, dataset, labels, cuda, outfile):
 	df_PCA.columns = ['PCA 1', 'PCA 2']
 	df_PCA['target'] = targets
 	np_PCA = np.array(df_PCA)
+	for i in range(len(np_PCA)):
+		latent_dict[np_PCA[i,2]].append(np_PCA[i,0:2])
+	latent_dict["variance"] = explained_variance
+	with open(outfile[:-12]+'.pkl', "wb") as f:
+		pickle.dump(latent_dict, f)
+	
 
 	##Iterate through contigs and OTU and have index for when contig is the same. Use this to compute the average in the latent space.
 	index_start, index_end = 0, 0
@@ -163,6 +173,65 @@ def pca_avg_encode(model, dataset, labels, cuda, outfile):
 	"""
 
 	return None
+
+def cluster_encoding(model, dataset, labels, cuda, outfile):
+	model.eval()
+	##Encode the whole dataset in small parts (memory limits)
+	for i in range(0, dataset.shape[0], 500):
+		if i == 0:
+			if cuda:	
+				encoded_vector = np.array(model.encode(torch.from_numpy(dataset[i:i+500]).cuda().float())[0].cpu().detach().numpy() )
+			else:
+				encoded_vector = np.array(model.encode(torch.from_numpy(dataset[i:i+500]).float())[0].cpu().detach().numpy() )
+
+		else:
+			if cuda:
+				encoded_vector = np.append(encoded_vector, model.encode(torch.from_numpy(dataset[i:i+500]).cuda().float())[0].cpu().detach().numpy(), axis=0 )
+			else:
+				encoded_vector = np.append(encoded_vector, model.encode(torch.from_numpy(dataset[i:i+500]).float())[0].cpu().detach().numpy(), axis=0 )
+
+	##Make a list of targets(OTU) and contigs
+	targets = []
+	contigs = []
+	for line in labels:
+		line_split = line.split()
+		targets.append(line_split[0])
+		contigs.append(line_split[1])
+	targets, contigs = np.array(targets), np.array(contigs)
+
+
+
+	##Iterate through contigs and OTU and have index for when contig is the same. Use this to compute the average in the latent space.
+	index_start, index_end = 0, 0
+	np_avg_encode = None
+	#current_contig = contigs[0]
+	##Labels has be unique to use vamb.cluster.cluster
+	df_avg_labels = []
+	df_avg_contig_labels = []
+	for i in range(len(targets)):
+		if contigs[index_start] == contigs[index_end]:
+			index_end += 1
+		else:
+			df_avg_labels.append(targets[index_start])
+			df_avg_contig_labels.append(contigs[index_start])
+			if np_avg_encode is None:
+				np_avg_encode = np.array([[np.mean(encoded_vector[index_start:index_end], axis=0)]])
+			else:
+				np_avg_encode = np.concatenate((np_avg_encode, np.array([[np.mean(encoded_vector[index_start:index_end],axis=0)]])))					
+			index_start = index_end
+			index_end += 1
+	print(np_avg_encode[:,0,:].shape)
+	print(np.array(df_avg_contig_labels).shape)
+	print('starting to use cluster function')
+	clusters = dict(vamb.cluster.cluster(np_avg_encode[:,0,:], labels = df_avg_contig_labels))
+	
+	with open(outfile, "w") as f:
+		vamb.cluster.write_clusters(f, clusters)
+		#pickle.dump(clusters, f)
+	return None
+
+	
+	
 			
 		
 

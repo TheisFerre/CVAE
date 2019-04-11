@@ -40,19 +40,19 @@ class CVAE(torch.nn.Module):
                         self.encoder_norms.append(torch.nn.BatchNorm1d(parameters[0]))
                 layer_count += 1
 	
-        self.encode_fc1 = torch.nn.Linear(int(self.fc_size*self.channels[-1]), 250)
-        self.encode_fc2 = torch.nn.Linear(250, 100)
-        self.encode_mu = torch.nn.Linear(100, self.latent_size)
-        self.encode_logvar = torch.nn.Linear(100, self.latent_size)
+        #self.encode_fc1 = torch.nn.Linear(int(self.fc_size*self.channels[-1]), 250)
+        #self.encode_fc2 = torch.nn.Linear(250, 100)
+        #self.encode_mu = torch.nn.Linear(100, self.latent_size)
+        #self.encode_logvar = torch.nn.Linear(100, self.latent_size)
 
-        #self.encode_mu = torch.nn.Linear(int(self.fc_size*self.channels[-1]), self.latent_size)
-        #self.encode_logvar = torch.nn.Linear(int(self.fc_size*self.channels[-1]), self.latent_size)
+        self.encode_mu = torch.nn.Linear(int(self.fc_size*self.channels[-1]), self.latent_size)
+        self.encode_logvar = torch.nn.Linear(int(self.fc_size*self.channels[-1]), self.latent_size)
 
         ##Decoder layers
         self.latent = torch.nn.Linear(self.latent_size, int(self.fc_size*self.channels[-1]))
-        self.latent = torch.nn.Linear(self.latent_size, 100)
-        self.decode_fc2 = torch.nn.Linear(100, 250)
-        self.decode_fc1 = torch.nn.Linear(250, int(self.fc_size*self.channels[-1])) 	
+        #self.latent = torch.nn.Linear(self.latent_size, 100)
+        #self.decode_fc2 = torch.nn.Linear(100, 250)
+        #self.decode_fc1 = torch.nn.Linear(250, int(self.fc_size*self.channels[-1])) 	
 
 
         self.decoder_layers = torch.nn.ModuleList()
@@ -77,34 +77,32 @@ class CVAE(torch.nn.Module):
         This enables the VAE to backpropagate since the std and mu vector are not randomly sampled from a gaussian distribution.
         Instead they are scaled and added.
         """
-        if len(mu) != len(logvar):
-            raise ValueError('Vector for mu and sigma have to be the same length')
+        logvar = torch.exp(logvar/2)
+        if self.cuda_flag:
+                epsilon = torch.randn((mu.size())).float().cuda()
         else:
-            self.logvar = torch.exp(logvar/2)
-            if self.cuda_flag:
-                self.epsilon = torch.randn((mu.size())).float().cuda()
-            else:
-                self.epsilon = torch.randn((mu.size())).float()
-            self.latent_vector = torch.mul(self.epsilon, self.logvar) + mu
+                epsilon = torch.randn((mu.size())).float()
+
+        latent_vector = torch.mul(epsilon, logvar) + mu
         
-        return self.latent_vector
+        return latent_vector
     
     def encode(self, x):
         '''
         The first part of the model, which encodes an input into a latent representation.
         '''
-        tensors = list()
+        #tensors = list()
 
         for layer, batchnorm in zip(self.encoder_layers, self.encoder_norms):
                 x = batchnorm(self.dropout(self.relu(layer(x))))
-                tensors.append(x)
+                #tensors.append(x)
         x = x.view(-1, int(self.fc_size*self.channels[-1]))
-        x = self.dropout(self.relu(self.encode_fc1(x)))
-        x = self.dropout(self.relu(self.encode_fc2(x)))
-        self.mu = self.encode_mu(x)
-        self.logvar = self.softplus(self.encode_logvar(x))
+        #x = self.dropout(self.relu(self.encode_fc1(x)))
+        #x = self.dropout(self.relu(self.encode_fc2(x)))
+        mu = self.encode_mu(x)
+        logvar = self.softplus(self.encode_logvar(x))
         
-        return self.reparameterize(self.mu, self.logvar), self.mu, self.logvar
+        return self.reparameterize(mu, logvar), mu, logvar
     
     def decode(self, x):
         '''
@@ -112,8 +110,8 @@ class CVAE(torch.nn.Module):
         '''
 
         x = self.latent(x)
-        x = self.dropout(self.relu(self.decode_fc2(x)))
-        x = self.dropout(self.relu(self.decode_fc1(x)))
+        #x = self.dropout(self.relu(self.decode_fc2(x)))
+        #x = self.dropout(self.relu(self.decode_fc1(x)))
         x = x.view(-1, self.channels[-1], int(self.fc_size))
         if len(self.channels) > 1:
                 for layer, batchnorm in zip(self.decoder_layers, self.decoder_norms):
@@ -134,11 +132,22 @@ class CVAE(torch.nn.Module):
         '''
         Function for calculating ce_loss and KLD_loss.
         '''
-        ce_loss = torch.nn.functional.cross_entropy(reconstructed_x, x.argmax(1))/math.log(4)
+        ce_loss = torch.nn.functional.cross_entropy(reconstructed_x+1e-10, x.argmax(1))/math.log(4)
        
-        KLD_loss = (-0.5 * (1 + logvar - mu.pow(2) - logvar.exp()).sum(dim=1).mean()) * (self.alpha/self.latent_size)
-        total_loss = ce_loss + KLD_loss
+        KLD_loss = (-0.5 * (1 + logvar - mu.pow(2) - logvar.exp()).sum(dim=1).mean())
+        total_loss = ce_loss + KLD_loss *(self.alpha/self.latent_size)
         return total_loss, ce_loss, KLD_loss
+
+
+
+
+
+
+
+
+
+
+
 
 
 

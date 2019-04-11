@@ -19,6 +19,9 @@ def train_model(model, dataset, epochs, batch_size, lr, cuda):
 	print('Starting to train!')
 
 	for epoch in range(1, epochs+1):
+		total_loss_item = 0
+		ce_loss_item = 0
+		KLD_loss_item = 0	
 		#batch_idx = np.random.permutation(dataset.shape[0])
 
 		for i_batch, batch in enumerate(dataloader):
@@ -37,12 +40,16 @@ def train_model(model, dataset, epochs, batch_size, lr, cuda):
 			optim.step()
 			
 			##Append loss to list to visualize model loss improvement.
-			total_loss_list.append(total_loss.item())
-			ce_loss_list.append(ce_loss.item())
-			KLD_loss_list.append(KLD_loss.item())
+			total_loss_item += total_loss.item()
+			ce_loss_item += ce_loss.item()
+			KLD_loss_item += KLD_loss.item()
+
+		total_loss_list.append(total_loss_item/i_batch)
+		ce_loss_list.append(ce_loss_item/i_batch)
+		KLD_loss_list.append(KLD_loss_item/i_batch)
 			
 
-		print('Epoch {} \tTotal_loss: {} \tce_loss: {} \tKLD_loss: {}'.format(epoch, np.mean(total_loss_list[-(len(total_loss_list)//epoch):]), np.mean(ce_loss_list[-(len(ce_loss_list)//epoch):]), np.mean(KLD_loss_list[-(len(KLD_loss_list)//epoch):]) ))
+		print('Epoch {} \tTotal_loss: {} \tce_loss: {} \tKLD_loss: {}'.format(epoch, ce_loss_list[-1]+KLD_loss_list[-1], ce_loss_list[-1], KLD_loss_list[-1]))
 	
 	##Return the loss lists, so we can save a plot where the loss is showed.
 	return (total_loss_list, ce_loss_list, KLD_loss_list)
