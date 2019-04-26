@@ -6,6 +6,7 @@ from sklearn.decomposition import PCA
 import pandas as pd
 import pickle
 import vamb
+from collections import defaultdict
 
 
 
@@ -94,7 +95,14 @@ def pca_avg_encode(model, dataset, labels, cuda, outfile):
 		line_split = line.split()
 		targets.append(line_split[0])
 		contigs.append(line_split[1])
-	targets, contigs = np.array(targets), np.array(contigs) #np.array(targets)[0:10000], np.array(contigs)[0:10000]	
+	targets, contigs = np.array(targets), np.array(contigs) #np.array(targets)[0:10000], np.array(contigs)[0:10000]
+	##Added to analyze average function
+	contig_dict = defaultdict(list)
+	for i in range(len(contigs)):
+		contig_dict[contigs[i]].append(encoded_vector[i])
+	with open(outfile[:-4]+'_contigs.pkl', "wb") as f:
+		pickle.dump(contig_dict, f)
+	print(len(contig_dict))
 	
 	
 

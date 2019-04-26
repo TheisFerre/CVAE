@@ -25,6 +25,7 @@ parser.add_argument('--kernels', type=str, default='20')
 parser.add_argument('--strides', type=str, default='20')
 parser.add_argument('--padding', type=str, default='')
 
+parser.add_argument('--encode', type=str, default='')
 parser.add_argument('--train', action='store_true')
 parser.add_argument('--load', type=str, default='')
 parser.add_argument('--cluster', type=str, default='')
@@ -125,6 +126,14 @@ if __name__ == '__main__':
 			plt.ylabel('Loss')
 			fig.savefig('./'+str(args.save)+'/Loss_plot.pdf', bbox_inches='tight')
 			'''
+	if len(args.encode) > 0:
+		if os.path.isfile('./'+str(args.encode)+'/Encode_avg_PCA.pkl'):
+			os.remove('./'+str(args.encode)+'/Encode_avg_PCA.pkl')
+			pca_avg_encode(cvae, dataset, labels, args.cuda, './'+str(args.encode)+'/Encode_avg_PCA.pkl')
+		else:
+			pca_avg_encode(cvae, dataset, labels, args.cuda, './'+str(args.encode)+'/Encode_avg_PCA.pkl')
+	
+
 	if len(args.cluster) > 0:
 		cluster_encoding(cvae, dataset, labels, args.cuda, './'+str(args.cluster)+'/cluster.tsv')
 	
