@@ -19,6 +19,7 @@ parser.add_argument('--lr', type=float, default=0.001)
 parser.add_argument('--latent_size', type=int, default=30)
 parser.add_argument('--alpha', type=float, default=1)
 parser.add_argument('--cuda', action='store_true')
+parser.add_argument('--gumbel', action='store_true')
 parser.add_argument('--dropout', type=float, default=0.25)
 parser.add_argument('--channels', type=str, default='50')
 parser.add_argument('--kernels', type=str, default='20')
@@ -42,9 +43,10 @@ if __name__ == '__main__':
 
 	##Load dataset and labels
 	#dataset = np.memmap('/home/projects/cpr_10006/projects/cnn_vamb/cnn/data/memmap_tensor', dtype=np.int, mode='r', shape=(752480, 4, 2000))
-	dataset = np.load('/home/projects/cpr_10006/projects/cnn_vamb/cnn/data/numpy_data.npy')
-	labels = open('/home/projects/cpr_10006/projects/cnn_vamb/cnn/data/labels.txt', 'r')
+	dataset = np.load('/home/projects/cpr_10006/projects/cnn_vamb/cnn/data/combined_tensor_10000.npy')
+	labels = open('/home/projects/cpr_10006/projects/cnn_vamb/cnn/data/labels_10000.txt', 'r')
 
+	##Create list of convolution parameters (Create try/except if not equal length?)
 	channels = list(map(int, args.channels.split('_')))
 	kernels = list(map(int, args.kernels.split('_')))
 	strides = list(map(int, args.strides.split('_')))
@@ -55,25 +57,25 @@ if __name__ == '__main__':
 	
 	cuda_flag = args.cuda
 	
-	##Check for cuda	
+	##Check for cuda and create/load model	
 	if cuda_flag:
 		if len(args.load) > 0:
 			cvae = torch.load(args.load+'/model')
 			cvae.load_state_dict(torch.load(args.load+'/state_dict'))
 			print('Model loaded')
 		else:
-			cvae = CVAE(args.latent_size, args.alpha, args.dropout, channels, kernels, strides, padding, args.cuda).float().cuda()
+			cvae = CVAE(args.latent_size, args.alpha, args.dropout, channels, kernels, strides, padding, args.cuda, args.gumbel, dataset.shape[-1]).float().cuda()
 	else:
 		if len(args.load) > 0:
 			cvae = torch.load(args.load+'/model', map_location='cpu')
 			cvae.load_state_dict(torch.load(args.load+'/state_dict', map_location='cpu'))
 			print('Model loaded')
 		else:
-			cvae = CVAE(args.latent_size, args.alpha, args.dropout, channels, kernels, strides, padding, args.cuda).float()
+			cvae = CVAE(args.latent_size, args.alpha, args.dropout, channels, kernels, strides, padding, args.cuda, args.gumbel, dataset.shape[-1]).float()
 	
 	##Train model if in arguments
 	if args.train:
-		loss_list = train_model(cvae, dataset, args.epochs, args.batch_size, args.lr, args.cuda)
+		loss_list = train_model(cvae, dataset, args.epochs, args.batch_size, args.lr, args.cuda, args.gumbel)
 	else:
 		print('Not training. train_state is {}'.format(args.train))
 	
@@ -99,9 +101,6 @@ if __name__ == '__main__':
 			torch.save(cvae, './'+str(args.save)+'/model')
 			torch.save(cvae.state_dict(), './'+str(args.save)+'/state_dict' )
 		
-		
-		
-
 		##If model is trained, and a directory to save has been specified then plot the loss.
 		if args.train:
 
@@ -126,6 +125,7 @@ if __name__ == '__main__':
 			plt.ylabel('Loss')
 			fig.savefig('./'+str(args.save)+'/Loss_plot.pdf', bbox_inches='tight')
 			'''
+	##If the user only wants to encode with a loaded model
 	if len(args.encode) > 0:
 		if os.path.isfile('./'+str(args.encode)+'/Encode_avg_PCA.pkl'):
 			os.remove('./'+str(args.encode)+'/Encode_avg_PCA.pkl')
@@ -133,12 +133,10 @@ if __name__ == '__main__':
 		else:
 			pca_avg_encode(cvae, dataset, labels, args.cuda, './'+str(args.encode)+'/Encode_avg_PCA.pkl')
 	
-
+	##If the user wants to cluster with a loaded/trained model
 	if len(args.cluster) > 0:
 		cluster_encoding(cvae, dataset, labels, args.cuda, './'+str(args.cluster)+'/cluster.tsv')
-	
-	if len(args.benchmark) > 0:
-		benchmark(args.benchmark)
+
 					
 
 			

@@ -3,7 +3,7 @@ import numpy as np
 from torch.utils.data import DataLoader
 
 
-def train_model(model, dataset, epochs, batch_size, lr, cuda):
+def train_model(model, dataset, epochs, batch_size, lr, cuda, gumbel):
 	'''
 	Function for training a model. 
 	'''
@@ -13,6 +13,12 @@ def train_model(model, dataset, epochs, batch_size, lr, cuda):
 	total_loss_list = []
 	ce_loss_list = []
 	KLD_loss_list = []
+	
+	if gumbel:
+		tau0 = 1
+		anneal_rate = 0.004
+		min_tau = 0.5
+
 
 
 	dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
@@ -33,7 +39,11 @@ def train_model(model, dataset, epochs, batch_size, lr, cuda):
 			reconstructed_x, mu, logvar = model.forward(batch)
 
 			##Calculating Reconstruction loss and KLD loss, from method in model Class.
-			total_loss, ce_loss, KLD_loss = model.calc_loss(reconstructed_x, batch, mu, logvar)
+			if gumbel:
+				tau = np.maximum(tau0*np.exp(-anneal_rate*epoch), min_tau)
+				total_loss, ce_loss, KLD_loss = model.calc_loss(reconstructed_x, batch, mu, logvar, tau=tau)
+			else:
+				total_loss, ce_loss, KLD_loss = model.calc_loss(reconstructed_x, batch, mu, logvar)
 			
 			optim.zero_grad()
 			total_loss.backward()

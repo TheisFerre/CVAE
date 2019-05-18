@@ -75,6 +75,7 @@ def pca_avg_encode(model, dataset, labels, cuda, outfile):
 	print('Using function pca_avg_encode')
 
 	##Encode the whole dataset in small parts (memory limits)
+	print(dataset.shape)
 	for i in range(0, dataset.shape[0], 500):
 		if i == 0:
 			if cuda:	
@@ -98,6 +99,8 @@ def pca_avg_encode(model, dataset, labels, cuda, outfile):
 	targets, contigs = np.array(targets), np.array(contigs) #np.array(targets)[0:10000], np.array(contigs)[0:10000]
 	##Added to analyze average function
 	contig_dict = defaultdict(list)
+	print(encoded_vector.shape)
+	print(contigs.shape)
 	for i in range(len(contigs)):
 		contig_dict[contigs[i]].append(encoded_vector[i])
 	with open(outfile[:-4]+'_contigs.pkl', "wb") as f:
