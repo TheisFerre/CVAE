@@ -1,3 +1,5 @@
+## Script for binning clusters using reference file
+
 import vamb
 
 def benchmark(cluster_directory):
@@ -9,6 +11,7 @@ def benchmark(cluster_directory):
 	with open(str(cluster_directory)+'/cluster.tsv') as filehandle:
 	    clusters = vamb.cluster.read_clusters(filehandle)
 
+	## Use VAMB binning script with clusters
 	binning = vamb.benchmark.Binning(clusters, reference)
 	bin_file = open(str(cluster_directory)+'/bins.tsv', 'w')
 	binning.print_matrix(file=bin_file)
@@ -20,6 +23,8 @@ def benchmark(cluster_directory):
 		print(bin_name, binning.bin_precision[bin_name]['length'], len(binning.bin_precision[bin_name]['contigs']), binning.bin_precision[bin_name]['recall'], binning.bin_precision[bin_name]['precision'], sep='\t', file=log_file)
 		#print(bin_name, binning.breadthof[bin_name])
 	return None
+
+## Let user specify in which directory the cluster file can be found
 run = input('Write directory: ')
 
 benchmark('/home/projects/cpr_10006/projects/cnn_vamb/cnn/runs/'+run)
