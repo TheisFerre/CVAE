@@ -1,4 +1,5 @@
-##Script for combining contig tensors to a single big tensor
+##Script for combining contig tensors to a single big tensor. This could have been merged together with the script that creates the contig-tensors to one big script.
+
 import os
 import numpy as np
 
@@ -6,6 +7,7 @@ os.chdir('/home/projects/cpr_10006/projects/cnn_vamb/process_contigs/contig_tens
 files = os.listdir()
 prefix = 'numpy_tensor'
 
+##Goes through the directory and concatenates the files into a single big .npy file
 for i in range(1, len(os.listdir())+1):
 	file_name = prefix+str(i)+'.npy'
 	if i == 1:
