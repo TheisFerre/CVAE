@@ -1,5 +1,14 @@
 # Convolutional neural networks for unsupervised learning of patterns in DNA sequences
 
+This report is the product of a 15 ECTS Bachelor thesis for the completion of my
+BSc. Eng. Biotechnology at The Technical University of Denmark (DTU). The
+project was conducted from the 1st of february to the 5th of June 2019 at the facilities of Novo Nordisk Center for Protein Research (CPR) in cooperation with the
+Rasmussen group that focuses on Human Proteome Variation. The external supervisor from CPR was group leader Simon Rasmussen.
+
+In short, this project was about using a Varitional AutoEncoder to cluster DNA sequences based on taxonomy (What kind of group the organism belongs to). This is a problem with great interest for bioinformaticians as it will enable fast screening of different environmental samples. An example of this, could be within the medical field, where the human microbiome has been shown to have a great influence on our health. If we can develop quick and cheap solutions to classifying the organisms living in the gut, we can use this information to give more impactful treatments in the future.
+
+
+
 ### Abstract:
 
 **Next-Generation-Sequencing has allowed scientist to develop a high-throughput method
