@@ -16,4 +16,4 @@ to weaken the signal in the data to such a degree that the model was not able to
 create meaningful clusters.**
 
 
-[Report](bachelor.pdf)
+[Report](Bachelor.pdf)
