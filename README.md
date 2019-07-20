@@ -15,5 +15,4 @@ had to be the same length, which forced the contigs to be fragmented. This showe
 to weaken the signal in the data to such a degree that the model was not able to
 create meaningful clusters.**
 
-
-[Report](Bachelor.pdf)
+The report can be found [here](Bachelor.pdf). It contains all the methods used and the results generated from the project.
