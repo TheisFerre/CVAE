@@ -1,8 +1,7 @@
 # Convolutional neural networks for unsupervised learning of patterns in DNA sequences
 
-This Repository was created as a part of my bachelor thesis concluding my bachelors degree B.Sc. Eng Biotechnology. Throughout my degree i had a focus on bioinformatics and computational biology.
 
-Next-Generation-Sequencing has allowed scientist to develop a high-throughput method
+**Next-Generation-Sequencing has allowed scientist to develop a high-throughput method
 for sequencing DNA with low cost and high precision. This has led to advances in
 bioinformatics and especially metagenomics. In metagenomics the goal is to identify
 and reconstruct microbial species directly from environmental samples. This allows
