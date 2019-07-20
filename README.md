@@ -14,3 +14,6 @@ found that using Convolutional layers in the Variational AutoEncoder had a detri
 had to be the same length, which forced the contigs to be fragmented. This showed
 to weaken the signal in the data to such a degree that the model was not able to
 create meaningful clusters.**
+
+
+[Report](bachelor.pdf)
